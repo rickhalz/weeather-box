@@ -1,0 +1,2 @@
+source /home/albert/test/esp/weather-box/build/bootloader/gdbinit/symbols
+source /home/albert/test/esp/weather-box/build/bootloader/gdbinit/connect
