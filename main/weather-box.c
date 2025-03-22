@@ -1,4 +1,5 @@
 #include "mq135.h"
+#include "shtc3.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
