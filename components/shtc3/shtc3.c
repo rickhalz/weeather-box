@@ -1,147 +1,100 @@
-#include "shtc3.h"
+/*
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-uint8_t calc_crc8(uint8_t *data, size_t len);
-static const char *TAG = "SHCT";
-
-void init_sensor(i2c_mode_t mode, gpio_num_t sda, gpio_num_t scl, uint32_t freq)
-{
-    i2c_config_t conf;
-    conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = GPIO_NUM_21;
-    conf.scl_io_num = GPIO_NUM_22;
-
-    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-
-    conf.master.clk_speed = freq;
-
-    i2c_param_config(I2C_NUM_0, &conf);
-    i2c_driver_install(I2C_NUM_0, conf.mode,
-                       0,
-                       0,
-                       0);
-}
-
-esp_err_t wakeup_sensor(uint8_t addr)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr << 1 | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, 0x35, true);
-    i2c_master_write_byte(cmd, 0x17, true);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 2);
-    i2c_cmd_link_delete(cmd);
-    if(err)
-        ESP_LOGI(TAG, "%s", esp_err_to_name(err));
-    return err;
-}
-esp_err_t get_ID_sensor(uint8_t addr)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr << 1 | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, 0xEF, true);
-    i2c_master_write_byte(cmd, 0xC8, true);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 2);
-    i2c_cmd_link_delete(cmd);
-
-    if(err)
-        ESP_LOGI(TAG, "%s", esp_err_to_name(err));
-
-    return err;
-}
-
-
-esp_err_t soft_reset_sensor(uint8_t addr)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr << 1 | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, 0x80, true);
-    i2c_master_write_byte(cmd, 0x5D, true);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 2);
-    i2c_cmd_link_delete(cmd);
-
-    return err;
-}
-
-esp_err_t read_out(uint8_t addr, uint16_t read_mode, float *temp, float *hum)
-{
-    vTaskDelay(10 / portTICK_RATE_MS);
-    //Read T First
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr << 1 | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, 0x78, true);
-    i2c_master_write_byte(cmd, 0x66, true);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 2);
-    if (err)
-        return err;
-
-    i2c_cmd_link_delete(cmd);
-
-    vTaskDelay(30 / portTICK_RATE_MS);
-
-    //Read
-    uint8_t data[6];
-
-    cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, 0xE1, true);
-
-    i2c_master_read(cmd, data, 6, I2C_MASTER_LAST_NACK);
-
-    i2c_master_stop(cmd);
-    err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 2);
-    i2c_cmd_link_delete(cmd);
-
-    if (calc_crc8(data, 2) == data[2])
-        *temp = ((((data[0] << 8) + data[1]) * 175) / 65536.0) - 45;
-    else
-        ESP_LOGI(TAG, "Temperature CRC error");
-
-    
-    if (calc_crc8(data + 3, 2) == data[5])
-        *hum = ((((data[3] << 8) + data[4]) * 100) / 65536.0);
-    else
-        ESP_LOGI(TAG, "Humidity CRC error");
-
-    
-    return err;
-}
-
-esp_err_t sleep_sensor(uint8_t addr)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr << 1 | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, 0xB0, true);
-    i2c_master_write_byte(cmd, 0x98, true);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 2);
-    i2c_cmd_link_delete(cmd);
-
-    return err;
-}
-
-uint8_t calc_crc8(uint8_t *data, size_t len)
-{
-    uint8_t crc = 0xff;
-    size_t i, j;
-    for (i = 0; i < len; i++)
-    {
-        crc ^= data[i];
-        for (j = 0; j < 8; j++)
-        {
-            if ((crc & 0x80) != 0)
-                crc = (uint8_t)((crc << 1) ^ 0x31);
-            else
-                crc <<= 1;
-        }
-    }
-    return crc;
-}
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <math.h>
+ #include <time.h>
+ #include <sys/time.h>
+ #include "esp_log.h"
+ #include "esp_err.h"
+ #include "esp_check.h"
+ #include "include/shtc3.h"
+ #include "shtc3.h"
+ 
+ static const char *TAG = "SHTC3";
+ 
+ i2c_master_dev_handle_t shtc3_device_create(i2c_master_bus_handle_t bus_handle, const uint16_t dev_addr, const uint32_t dev_speed)
+ {
+     i2c_device_config_t dev_cfg = {
+         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+         .device_address = dev_addr,
+         .scl_speed_hz = dev_speed,
+     };
+ 
+     i2c_master_dev_handle_t dev_handle;
+ 
+     // Add device to the I2C bus
+     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
+ 
+     return dev_handle;
+ }
+ 
+ esp_err_t shtc3_device_delete(i2c_master_dev_handle_t dev_handle)
+ {
+     return i2c_master_bus_rm_device(dev_handle);
+ }
+ 
+ static esp_err_t shtc3_wake(i2c_master_dev_handle_t dev_handle)
+ {
+     esp_err_t ret;
+     shtc3_register_w_t reg_addr = SHTC3_REG_WAKE;
+     uint8_t read_reg[2] = { reg_addr >> 8, reg_addr & 0xff };
+     
+     ret = i2c_master_transmit(dev_handle, read_reg, 2, -1);
+     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to wake up SHTC3 sensor");
+ 
+     return ret;
+ }
+ 
+ static esp_err_t shtc3_sleep(i2c_master_dev_handle_t dev_handle)
+ {
+     esp_err_t ret;
+     shtc3_register_w_t reg_addr = SHTC3_REG_SLEEP;
+     uint8_t read_reg[2] = { reg_addr >> 8, reg_addr & 0xff };
+ 
+     ret = i2c_master_transmit(dev_handle, read_reg, 2, -1);
+     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to put SHTC3 sensor to sleep");
+     
+     return ret;
+ }
+ 
+ esp_err_t shtc3_get_id(i2c_master_dev_handle_t dev_handle, uint8_t *id)
+ {
+     esp_err_t ret;
+     shtc3_register_rw_t reg_addr = SHTC3_REG_READ_ID;
+     uint8_t read_reg[2] = { reg_addr >> 8, reg_addr & 0xff };
+     uint8_t b_read[2] = {0};
+ 
+     shtc3_wake(dev_handle);
+     ret = i2c_master_transmit_receive(dev_handle, read_reg, 2, b_read, 2, 200);
+     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to read SHTC3 ID");
+ 
+     // Copy the read ID to the provided id pointer
+     id[0] = b_read[0];
+     id[1] = b_read[1];
+ 
+     return ret;
+ }
+ 
+  esp_err_t shtc3_get_th(i2c_master_dev_handle_t dev_handle, shtc3_register_rw_t reg, float *data1, float *data2)
+ {
+     esp_err_t ret;
+     uint8_t b_read[6] = {0};
+     uint8_t read_reg[2] = { reg >> 8, reg & 0xff };
+ 
+     shtc3_wake(dev_handle);
+     // Read 4 bytes of data from the sensor
+     ret = i2c_master_transmit_receive(dev_handle, read_reg, 2, b_read, 6, 200);
+     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to read data from SHTC3 sensor");
+     shtc3_sleep(dev_handle);
+ 
+     // Convert the data
+     *data1 = ((((b_read[0] * 256.0) + b_read[1]) * 175) / 65535.0) - 45;
+     *data2 = ((((b_read[3] * 256.0) + b_read[4]) * 100) / 65535.0);
+ 
+     return ret;
+ }
