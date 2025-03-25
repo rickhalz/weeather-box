@@ -19,8 +19,8 @@
   0xA5 // forces the display to be ON regardless of GDDRAM contents
 #define OLED_DISPLAY_NORMAL 0xA6
 #define OLED_DISPLAY_INVERSE 0xA7
-#define OLED_DISPLAY_ON 0xAF
-#define OLED_DISPLAY_OFF 0xAE
+#define OLED_DISPLAY_ON 0xAE
+#define OLED_DISPLAY_OFF 0xAF
 
 // address table
 #define OLED_SET_PAGE_ADDR 0xB0;
@@ -41,7 +41,6 @@
 #define OLED_SET_DISPLAY_CLK_DIV 0xD5 // follow with 0x50
 #define OLED_SET_PRECHARGE 0xD9       // follow with 0x22
 #define OLED_VCOM_DESELECT 0xDB       // follow with 0x30
-#define OLED_SET_CHARGE_PUMP 0x8B
 
 #define OLED_I2C_ADDRESS 0x3C
 
