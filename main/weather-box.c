@@ -1,100 +1,79 @@
-#include "mq135.h"
-#include "shtc3.h"
-#include "driver/i2c_types.h"
+#include <stdio.h>
+#include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "font8x8_basic.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "hal/i2c_types.h"
+#include "sh1106.h"
+#include "mq135.h"
+#include "shtc3.h"
 
-static const char *TAG_1 = "MQ135_MAIN";
+adc_oneshot_unit_handle_t adc_handle;
 
-#define SHTC3_SDA_GPIO           21  /*!< gpio number for I2C master data  */
-#define SHTC3_SCL_GPIO           22  /*!< gpio number for I2C master clock */
+void i2c_master_init(SH1106_t *oled, SHTC3_t *shtc3, uint8_t sda, uint8_t scl) {
+  i2c_master_bus_config_t i2c_config = {.clk_source = I2C_CLK_SRC_DEFAULT,
+                                        .glitch_ignore_cnt = 7,
+                                        .i2c_port = I2C_NUM_0,
+                                        .scl_io_num = scl,
+                                        .sda_io_num = sda,
+                                        .flags.enable_internal_pullup = true};
 
-static const char *TAG_2 = "SHTC3";
+  i2c_master_bus_handle_t i2c_bus_handle;
+  ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_config, &i2c_bus_handle));
 
-i2c_master_dev_handle_t shtc3_handle;
+  i2c_device_config_t oled_config = {
+      .dev_addr_length = I2C_ADDR_BIT_7,
+      .device_address = OLED_I2C_ADDRESS,
+      .scl_speed_hz = 100000,
+  };
 
-// Task to read the sensor data
-void shtc3_read_task(void *pvParameters)
-{
-    float temperature, humidity;
-    esp_err_t err = ESP_OK;
-    shtc3_register_rw_t reg = SHTC3_REG_T_CSE_NM;
+	i2c_device_config_t shtc3_config = {
+		.dev_addr_length = I2C_ADDR_BIT_7,
+		.device_address = SHTC3_I2C_ADDRESS,
+		.scl_speed_hz = 100000,
+	};
 
-    while (1) {
-        err = shtc3_get_th(shtc3_handle, reg, &temperature, &humidity);
-        if(err != ESP_OK) {
-            ESP_LOGE(TAG_2, "Failed to read data from SHTC3 sensor");
-        } else {
-            ESP_LOGI(TAG_2, "Temperature: %.2f C, Humidity: %.2f %%", temperature, humidity);
-        }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+	i2c_master_dev_handle_t shtc3_dev_handle;
+  i2c_master_dev_handle_t oled_dev_handle;
+
+  ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &oled_config, &oled_dev_handle));
+	ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &shtc3_config, &shtc3_dev_handle));
+
+  oled->_address = OLED_I2C_ADDRESS;
+  oled->_flip = false;
+  oled->_i2c_num = I2C_NUM_0;
+  oled->i2c_bus_handle = i2c_bus_handle;
+  oled->i2c_dev_handle = oled_dev_handle;
+
+	shtc3->_address = SHTC3_I2C_ADDRESS;
+	shtc3->_i2c_num = I2C_NUM_0;
+	shtc3->i2c_bus_handle = i2c_bus_handle;
+	shtc3->i2c_dev_handle = shtc3_dev_handle;
 }
-
-i2c_master_bus_handle_t i2c_bus_init(uint8_t sda_io, uint8_t scl_io)
-{
-    i2c_master_bus_config_t i2c_bus_config = {
-        .i2c_port = 0,
-        .sda_io_num = sda_io,
-        .scl_io_num = scl_io,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = true,
-    };
-
-    i2c_master_bus_handle_t bus_handle;
-
-    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_config, &bus_handle));
-    ESP_LOGI(TAG_2, "I2C master bus created");
-
-    return bus_handle;
-}
-
-//SHTC3 setup part end
 
 void app_main(void) {
-    ESP_LOGI(TAG_1, "Starting MQ-135 project...");
-    mq135_init();
-    
-    i2c_master_bus_handle_t bus_handle = i2c_bus_init(SHTC3_SDA_GPIO, SHTC3_SCL_GPIO);
-    shtc3_handle = shtc3_device_create(bus_handle, SHTC3_I2C_ADDR, 100000);
-    ESP_LOGI(TAG_2, "Sensor initialization success");
+  SH1106_t dev;
+	SHTC3_t dev1;
+// 	mq135_init(&adc_handle);
+  i2c_master_init(&dev, &dev1, GPIO_NUM_21, GPIO_NUM_22);
+  sh1106_init(&dev, 128, 64);
+  sh1106_clearScreen(&dev, false);
+  sh1106_setContrast(&dev, 0xff);
 
-    // Probe the sensor to check if it is connected to the bus with a 10ms timeout
-    esp_err_t err = i2c_master_probe(bus_handle, SHTC3_I2C_ADDR, 200);
-
-  
-    if(err == ESP_OK) {
-        ESP_LOGI(TAG_2, "SHTC3 sensor found");
-        uint8_t sensor_id[2];
-        err = shtc3_get_id(shtc3_handle, sensor_id);
-        ESP_LOGI(TAG_2, "Sensor ID: 0x%02x%02x", sensor_id[0], sensor_id[1]);
-
-        if(err == ESP_OK) {
-            ESP_LOGI(TAG_2, "SHTC3 ID read successfully");
-            xTaskCreate(shtc3_read_task, "shtc3_read_task", 4096, NULL, 5, NULL);
-        } else {
-            ESP_LOGE(TAG_2, "Failed to read SHTC3 ID");
-        }
-
-    } else {
-        ESP_LOGE(TAG_2, "SHTC3 sensor not found");
-        shtc3_device_delete(shtc3_handle);
-    }
-
-    while (1) {
-        //MQ135 
-        int air_quality = mq135_read();
-        if (air_quality) {
-            ESP_LOGI(TAG_1, "Air Quality: GOOD");
-        } else {
-            ESP_LOGW(TAG_1, "Air Quality: BAD");
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));  // Read every 1 second
-
-        //SHTC3
-    }  
+	sh1106_displayText(&dev, 3, "LUONG NGU", 9, false);
+	while (1) {
+		SHTC3_readTRH(&dev1);
+		printf("Temperature: %.2f°C, Humidity: %.2f%%\n", dev1._temp, dev1._rh);
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
+	};
+// 		char data[13];
+//
+// 	while (0) {
+// 		int air_quality = mq135_read(adc_handle);
+// 		snprintf(data, sizeof(data), "   %d", air_quality);
+// 		sh1106_displayText(&dev, 3, data, 12, false);
+// 		vTaskDelay(pdMS_TO_TICKS(1000));
+// 	}
 }
-

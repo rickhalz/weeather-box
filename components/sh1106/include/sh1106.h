@@ -105,7 +105,6 @@ void sh1106_display_rotate_text(SH1106_t *dev, int seg, char *text,
 void sh1106_dump(SH1106_t dev);
 void sh1106_dump_page(SH1106_t *dev, int page, int seg);
 
-void i2c_master_init(SH1106_t * dev, int16_t sda, int16_t scl);
 void i2c_device_add(SH1106_t * dev, i2c_port_t i2c_num, uint16_t i2c_address);
 void i2c_init(SH1106_t * dev, int width, int height);
 void i2c_display_image(SH1106_t * dev, int page, int seg, uint8_t * images, int width);

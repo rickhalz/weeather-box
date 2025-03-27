@@ -77,3 +77,17 @@ void sh1106_invert(uint8_t *buf, size_t blen)
 		buf[i] = ~wk;
 	}
 }
+
+void sh1106_clearScreen(SH1106_t * dev, bool invert)
+{
+	char space[16];
+	memset(space, 0x00, sizeof(space));
+	for (int page = 0; page < dev->_pages; page++) {
+		sh1106_displayText(dev, page, space, sizeof(space), invert);
+	}
+}
+
+void sh1106_setContrast(SH1106_t *dev, int contrast)
+{
+	i2c_contrast(dev, contrast);
+}
