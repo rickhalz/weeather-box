@@ -9,8 +9,25 @@
 #include "sh1106.h"
 #include "mq135.h"
 #include "shtc3.h"
-
+#include "bmp280.h"
 adc_oneshot_unit_handle_t adc_handle;
+
+i2c_master_bus_handle_t i2c_bus_init(uint8_t sda_io, uint8_t scl_io)
+{
+    i2c_master_bus_config_t i2c_bus_config = {
+        .i2c_port = I2C_NUM_0,
+        .sda_io_num = sda_io,
+        .scl_io_num = scl_io,
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .flags.enable_internal_pullup = true,
+    };
+    i2c_master_bus_handle_t bus_handle;
+    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_config, &bus_handle));
+    ESP_LOGI("test","I2C master bus created");
+    return bus_handle;
+}
+
 
 void i2c_master_init(SH1106_t *oled, SHTC3_t *shtc3, uint8_t sda, uint8_t scl) {
   i2c_master_bus_config_t i2c_config = {.clk_source = I2C_CLK_SRC_DEFAULT,
@@ -53,20 +70,62 @@ void i2c_master_init(SH1106_t *oled, SHTC3_t *shtc3, uint8_t sda, uint8_t scl) {
 	shtc3->i2c_dev_handle = shtc3_dev_handle;
 }
 
+//BMP280
+esp_err_t bmp280_dev_init(bmp280_t** bmp280,i2c_master_bus_handle_t bus_handle)
+{
+    *bmp280 = bmp280_create_master(bus_handle);
+    if (!*bmp280) { 
+        ESP_LOGE("test", "Could not create bmp280 driver.");
+        return ESP_FAIL;
+    }
+    
+    ESP_ERROR_CHECK(bmp280_init(*bmp280));
+    bmp280_config_t bmp_cfg = BMP280_DEFAULT_CONFIG;
+    ESP_ERROR_CHECK(bmp280_configure(*bmp280, &bmp_cfg));
+    return ESP_OK;
+}
+
 void app_main(void) {
   SH1106_t dev;
 	SHTC3_t dev1;
 // 	mq135_init(&adc_handle);
+  i2c_master_bus_handle_t bus_handle = i2c_bus_init(GPIO_NUM_21, GPIO_NUM_22);
+  
   i2c_master_init(&dev, &dev1, GPIO_NUM_21, GPIO_NUM_22);
   sh1106_init(&dev, 128, 64);
   sh1106_clearScreen(&dev, false);
   sh1106_setContrast(&dev, 0xff);
-
-	sh1106_displayText(&dev, 3, "LUONG NGU", 9, false);
+	sh1106_displayText(&dev, 3, "CU TO CHA BA", 9, false);
+  
+  //bmp280
+  bmp280_t* bmp280 = NULL;
+  ESP_ERROR_CHECK(bmp280_dev_init(&bmp280,bus_handle));
+  ESP_ERROR_CHECK(bmp280_setMode(bmp280, BMP280_MODE_CYCLE));
+  
+  float temp = 0, pres = 0;
+  
 	while (1) {
 		SHTC3_readTRH(&dev1);
 		printf("Temperature: %.2f°C, Humidity: %.2f%%\n", dev1._temp, dev1._rh);
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
+    
+    
+    for(int i = 0; i < 10; i++)
+    {
+        do {
+            vTaskDelay(pdMS_TO_TICKS(1));
+        } while(bmp280_isSampling(bmp280));
+  
+        ESP_ERROR_CHECK(bmp280_readoutFloat(bmp280, &temp, &pres));
+        ESP_LOGI("test", "Read Values: temp = %f, pres = %f", temp, pres);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    
+    bmp280_close(bmp280);
+    
+    i2c_del_master_bus(bus_handle);
+  
+  
 	};
 // 		char data[13];
 //
@@ -76,4 +135,7 @@ void app_main(void) {
 // 		sh1106_displayText(&dev, 3, data, 12, false);
 // 		vTaskDelay(pdMS_TO_TICKS(1000));
 // 	}
+    
+
+
 }
