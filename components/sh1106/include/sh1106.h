@@ -57,7 +57,7 @@ typedef struct {
   int _dc;
   PAGE_t _page[8];
   bool _flip;
-	i2c_port_t _i2c_num;
+  i2c_port_t _i2c_num;
   i2c_master_bus_handle_t i2c_bus_handle;
   i2c_master_dev_handle_t i2c_dev_handle;
 } SH1106_t;
@@ -75,19 +75,9 @@ void sh1106_displayImage(SH1106_t *dev, int page, int seg, uint8_t *images,
                          int width);
 void sh1106_displayText(SH1106_t *dev, int page, char *text, int text_len,
                         bool invert);
-void sh1106_displayTextBox1(SH1106_t *dev, int page, int seg, char *text,
-                            int box_width, int text_len, bool invert,
-                            int delay);
-void sh1106_displayTextBox2(SH1106_t *dev, int page, int seg, char *text,
-                            int box_width, int text_len, bool invert,
-                            int delay);
-void sh1106_displayTextX3(SH1106_t *dev, int page, char *text, int text_len,
-                          bool invert);
 void sh1106_clearScreen(SH1106_t *dev, bool invert);
 void sh1106_clearLine(SH1106_t *dev, int page, bool invert);
 void sh1106_setContrast(SH1106_t *dev, int contrast);
-void sh1106_bitmaps(SH1106_t *dev, int xpos, int ypos, uint8_t *bitmap,
-                    int width, int height, bool invert);
 void sh1106_bitmaps(SH1106_t *dev, int xpos, int ypos, uint8_t *bitmap,
                     int width, int height, bool invert);
 void sh1106_drawPixel(SH1106_t *dev, int xpos, int ypos, bool invert);
@@ -105,9 +95,10 @@ void sh1106_display_rotate_text(SH1106_t *dev, int seg, char *text,
 void sh1106_dump(SH1106_t dev);
 void sh1106_dump_page(SH1106_t *dev, int page, int seg);
 
-void i2c_device_add(SH1106_t * dev, i2c_port_t i2c_num, uint16_t i2c_address);
-void i2c_init(SH1106_t * dev, int width, int height);
-void i2c_display_image(SH1106_t * dev, int page, int seg, uint8_t * images, int width);
-void i2c_contrast(SH1106_t * dev, int contrast);
+void i2c_device_add(SH1106_t *dev, i2c_port_t i2c_num, uint16_t i2c_address);
+void i2c_init(SH1106_t *dev, int width, int height);
+void i2c_display_image(SH1106_t *dev, int page, int seg, uint8_t *images,
+                       int width);
+void i2c_contrast(SH1106_t *dev, int contrast);
 
 #endif
