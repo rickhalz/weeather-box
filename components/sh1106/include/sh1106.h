@@ -90,9 +90,9 @@ void sh1106_bitmaps(SH1106_t *dev, int xpos, int ypos, uint8_t *bitmap,
                     int width, int height, bool invert);
 void sh1106_bitmaps(SH1106_t *dev, int xpos, int ypos, uint8_t *bitmap,
                     int width, int height, bool invert);
-void sh1106_pixel(SH1106_t *dev, int xpos, int ypos, bool invert);
+void sh1106_drawPixel(SH1106_t *dev, int xpos, int ypos, bool invert);
 void sh1106_line(SH1106_t *dev, int x1, int y1, int x2, int y2, bool invert);
-void sh1106_circle(SH1106_t *dev, int x0, int y0, int r, bool invert);
+void sh1106_drawCircle(SH1106_t *dev, int x0, int y0, int r, bool invert);
 void sh1106_cursor(SH1106_t *dev, int x0, int y0, int r, bool invert);
 void sh1106_invert(uint8_t *buf, size_t blen);
 void sh1106_flip(uint8_t *buf, size_t blen);

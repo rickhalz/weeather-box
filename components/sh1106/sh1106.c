@@ -91,3 +91,42 @@ void sh1106_setContrast(SH1106_t *dev, int contrast)
 {
 	i2c_contrast(dev, contrast);
 }
+
+void sh1106_drawPixel(SH1106_t *dev, int x0, int y0, bool invert) {
+	uint8_t _page = y0 / 8;
+	uint8_t _bits = y0 % 8;
+	uint8_t _seg = x0;
+	uint8_t wk0 = dev->_page[_page].segs[_seg];
+	uint8_t wk1 = 1 << _bits;
+	if (invert) {
+		wk0 = wk0 & ~wk1;
+	} else {
+		wk0 = wk0 | wk1;
+	}
+
+	if (dev->_flip) wk0 = sh1106_rotate_byte(wk0);
+	dev->_page[_page].segs[_seg] = wk0;
+}
+
+void sh1106_drawCircle(SH1106_t *dev,int x0, int y0, int radius, bool invert) {
+	int x, y, err, temp;
+
+	x = 0;
+	y = -radius;
+	err = 2 - 2 * radius;
+	do {
+	sh1106_drawPixel(dev, x0 - x, y0 + y, invert);
+	sh1106_drawPixel(dev, x0 - y, y0 - x, invert);
+	sh1106_drawPixel(dev, x0 + x, y0 - y, invert);
+	sh1106_drawPixel(dev, x0 + y, y0 + x, invert);
+	
+	if ((temp = err) <= x) err += ++x * 2 + 1;
+	if (temp > y || err > x) err += ++y * 2 + 1;
+	} while (y < 0);
+}
+
+void sh1106_showBuffer(SH1106_t *dev) {
+		for (int i = 0; i < dev->_pages; i++) {
+			i2c_display_image(dev, i, 0, dev->_page[i].segs, dev->_width);
+		}
+}

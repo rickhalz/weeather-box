@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -6,6 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "hal/i2c_types.h"
+#include "portmacro.h"
 #include "sh1106.h"
 #include "mq135.h"
 #include "shtc3.h"
@@ -88,6 +90,7 @@ esp_err_t bmp280_dev_init(bmp280_t** bmp280,i2c_master_bus_handle_t bus_handle)
 void app_main(void) {
   SH1106_t dev;
 	SHTC3_t dev1;
+<<<<<<< Updated upstream
 // 	mq135_init(&adc_handle);
   i2c_master_bus_handle_t bus_handle = i2c_bus_init(GPIO_NUM_21, GPIO_NUM_22);
   
@@ -104,8 +107,24 @@ void app_main(void) {
   
   float temp = 0, pres = 0;
   
+=======
+	// initialize peripherals
+	mq135_init(&adc_handle);
+  i2c_master_init(&dev, &dev1, GPIO_NUM_21, GPIO_NUM_22);
+  sh1106_init(&dev, 128, 64);
+  sh1106_clearScreen(&dev, false);
+  sh1106_setContrast(&dev, 0xFF);
+	sh1106_displayText(&dev, 0, " weather data", 13, false);
+	char dataAQ[16], dataTemp[16], dataRH[16];
+
+>>>>>>> Stashed changes
 	while (1) {
+		sh1106_drawCircle(&dev, 93, 29, 2, false);
+		sh1106_showBuffer(&dev);
+		int lenAQ = 0, lenTemp = 0, lenRH = 0;
+		int air_quality = mq135_read(adc_handle);
 		SHTC3_readTRH(&dev1);
+<<<<<<< Updated upstream
 		printf("Temperature: %.2f°C, Humidity: %.2f%%\n", dev1._temp, dev1._rh);
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
     
@@ -138,4 +157,17 @@ void app_main(void) {
     
 
 
+=======
+		snprintf(dataAQ, sizeof(dataAQ), " AQ: %d", air_quality);
+		lenAQ = strlen(dataAQ);
+		snprintf(dataTemp, sizeof(dataTemp), " Temp: %.1f C", dev1._temp);
+	  lenTemp = strlen(dataTemp);
+		snprintf(dataRH, sizeof(dataRH), " RH: %.1f", dev1._rh);
+		lenRH = strlen(dataRH);
+		sh1106_displayText(&dev, 3, dataAQ, lenAQ, false);
+		sh1106_displayText(&dev, 4, dataTemp, lenTemp, false);
+		sh1106_displayText(&dev, 5, dataRH, lenRH, false);
+		vTaskDelay(3000 / portTICK_PERIOD_MS);
+	}
+>>>>>>> Stashed changes
 }
