@@ -15,3 +15,4 @@ git clone https://github.com/rickhalz/weeather-box.git
 cd weeather-box
 idf.py build && idf.py flash
 ```
+Version during test is v5.2.5
