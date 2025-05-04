@@ -1,4 +1,6 @@
 // #include "bmp280.h"
+#include <stdio.h>
+#include <string.h>
 #include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -10,8 +12,8 @@
 #include "portmacro.h"
 #include "sh1106.h"
 #include "shtc3.h"
-#include <stdio.h>
-#include <string.h>
+#include "nvs_flash.h"
+#include "wifi_sta.h"
 
 adc_oneshot_unit_handle_t adc_handle;
 
@@ -72,35 +74,9 @@ void i2c_master_init(SH1106_t *oled, SHTC3_t *shtc3, uint8_t sda, uint8_t scl) {
   shtc3->i2c_bus_handle = i2c_bus_handle;
   shtc3->i2c_dev_handle = shtc3_dev_handle;
 }
-
-// BMP280
-//  esp_err_t bmp280_dev_init(bmp280_t** bmp280,i2c_master_bus_handle_t
-//  bus_handle)
-//  {
-//      *bmp280 = bmp280_create_master(bus_handle);
-//      if (!*bmp280) {
-//          ESP_LOGE("test", "Could not create bmp280 driver.");
-//          return ESP_FAIL;
-//      }
-//
-//      ESP_ERROR_CHECK(bmp280_init(*bmp280));
-//      bmp280_config_t bmp_cfg = BMP280_DEFAULT_CONFIG;
-//      ESP_ERROR_CHECK(bmp280_configure(*bmp280, &bmp_cfg));
-//      return ESP_OK;
-//  }
-
 void app_main(void) {
   SH1106_t dev;
   SHTC3_t dev1;
-  mq135_init(&adc_handle);
-
-  // bmp280
-  // bmp280_t* bmp280 = NULL;
-  // ESP_ERROR_CHECK(bmp280_dev_init(&bmp280,bus_handle));
-  // ESP_ERROR_CHECK(bmp280_setMode(bmp280, BMP280_MODE_CYCLE));
-  //
-  // float temp = 0, pres = 0;
-  //
   // initialize peripherals
 
   mq135_init(&adc_handle);
@@ -112,7 +88,17 @@ void app_main(void) {
   char dataAQ[16], dataTemp[16], dataRH[16];
   int lenAQ = 0, lenTemp = 0, lenRH = 0;
 
+    // initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    wifi_init_sta();
+
   while (1) {
+		// display datas
     sh1106_drawCircle(&dev, 93, 29, 2, false);
     sh1106_showBuffer(&dev);
     int air_quality = mq135_read(adc_handle);
@@ -126,20 +112,10 @@ void app_main(void) {
     sh1106_displayText(&dev, 3, dataAQ, lenAQ, false);
     sh1106_displayText(&dev, 4, dataTemp, lenTemp, false);
     sh1106_displayText(&dev, 5, dataRH, lenRH, false);
+
+		// MQTT part
+
+
     vTaskDelay(3000 / portTICK_PERIOD_MS);
-    //   for(int i = 0; i < 10; i++)
-    //   {
-    //       do {
-    //           vTaskDelay(pdMS_TO_TICKS(1));
-    //       } while(bmp280_isSampling(bmp280));
-    //
-    //       ESP_ERROR_CHECK(bmp280_readoutFloat(bmp280, &temp, &pres));
-    //       ESP_LOGI("test", "Read Values: temp = %f, pres = %f", temp, pres);
-    //       vTaskDelay(pdMS_TO_TICKS(1000));
-    //   }
-    //
-    //   bmp280_close(bmp280);
-    //
-    //   i2c_del_master_bus(bus_handle);
   }
 }
