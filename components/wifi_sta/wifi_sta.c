@@ -6,10 +6,9 @@
 #include "esp_event.h"
 #include "nvs_flash.h"
 #include "wifi_sta.h"
+#include "sdkconfig.h"
 
 // CHINH SUA TEN VOI WIFI
-#define WIFI_SSID      "TP-LINK_73CDC0"
-#define WIFI_PASS      "35530753"
 #define MAX_RETRY      5
 
 // LUU Y: WIFI DUNG GIAO THUC WPA2 (PHO BIEN NHAT)!!!!!!!!!!!!!!!!!!!!!!!!
@@ -64,8 +63,8 @@ void wifi_init_sta(void)
 
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASS,
+            .ssid = CONFIG_WIFI_SSID,
+            .password = CONFIG_WIFI_PASSWORD,
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
         },
     };
@@ -81,9 +80,9 @@ void wifi_init_sta(void)
                                            pdFALSE, pdFALSE, portMAX_DELAY);
 
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected to SSID:%s", WIFI_SSID);
+        ESP_LOGI(TAG, "Connected to SSID:%s", CONFIG_WIFI_SSID);
     } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID:%s", WIFI_SSID);
+        ESP_LOGI(TAG, "Failed to connect to SSID:%s", CONFIG_WIFI_SSID);
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }

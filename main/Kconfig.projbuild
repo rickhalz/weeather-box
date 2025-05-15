@@ -1,0 +1,19 @@
+menu "MQTT Configuration"
+
+config MQTT_CHANNEL_ID
+    string "ThingSpeak Channel ID"
+    default ""
+
+config MQTT_CLIENT_ID
+    string "MQTT Client ID"
+    default ""
+
+config MQTT_USERNAME
+    string "MQTT Username"
+    default ""
+
+config MQTT_PASSWORD
+    string "MQTT Password (API Key)"
+    default ""
+
+endmenu
